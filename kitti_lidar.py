@@ -2,6 +2,9 @@ import os
 from utils.kitti_utils import read_label, get_velodyne_scan_points, load_image, compute_bbox3d, Calibration
 from utils.visualization_utils import draw_lidar_simple, draw_lidar, draw_groundtruth_3dbboxes
 import mayavi.mlab as mlab
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
 
 
 class KITTIObject:
@@ -39,6 +42,7 @@ class KITTIObject:
 
 def get_lidar_index_in_image_fov(pcd, calib, xmin, ymin, xmax, ymax, clip_distance=2.0):
     points2d = calib.project_lidar_to_image(pcd)
+    # fov_idxs = points2d[:,:]
     fov_idxs = ((points2d[:, 0] < xmax) & (points2d[:, 0] >= xmin) &
                 (points2d[:, 1] < ymax) & (points2d[:, 1] >= ymin))
     fov_idxs = fov_idxs & (pcd[:, 0] > clip_distance)
@@ -64,3 +68,31 @@ def show_lidar_data(point_cloud_data, objects, calibration, figure,
 
         draw_groundtruth_3dbboxes([bbox3d_velodyne], fig=figure, color=color, label=obj.classification)
     mlab.show(1)
+
+
+def get_lidar_data_in_image_fov(pcd, calib, xmin, ymin, xmax, ymax, clip_distance=2.0):
+    points2d = calib.project_lidar_to_image(pcd)
+    fov_idxs = ((points2d[:, 0] < xmax) & (points2d[:, 0] >= xmin) &
+                (points2d[:, 1] < ymax) & (points2d[:, 1] >= ymin))
+    fov_idxs = fov_idxs & (pcd[:, 0] > clip_distance)
+    imgfov_pcd = pcd[fov_idxs, :]
+
+    return imgfov_pcd, points2d, fov_idxs
+
+
+def show_lidar_data_on_image(point_cloud_data, img, calib, img_width, img_height):
+    img = np.copy(img)
+    imgfov_pcd, points2d, fov_indices = get_lidar_data_in_image_fov(point_cloud_data, calib, 0, 0, img_width, img_height)
+    imgfov_points2d = points2d[fov_indices, :]
+    imgfov_pc_rect = calib.project_lidar_to_rect(imgfov_pcd)
+
+    cmap = plt.cm.get_cmap("hsv", 256)
+    cmap = np.array([cmap(i) for i in range(256)])[:, :3] * 255
+
+    for i in range(imgfov_points2d.shape[0]):
+        depth = imgfov_pc_rect[i, 2]
+        color = cmap[int(640.0 / depth), :]
+        cv2.circle(img, (int(np.round(imgfov_points2d[i, 0])), int(np.round(imgfov_points2d[i, 1]))),
+                   2, color=tuple(color), thickness=-1)
+    return img
+
