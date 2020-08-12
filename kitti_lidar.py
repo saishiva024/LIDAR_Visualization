@@ -42,7 +42,6 @@ class KITTIObject:
 
 def get_lidar_index_in_image_fov(pcd, calib, xmin, ymin, xmax, ymax, clip_distance=2.0):
     points2d = calib.project_lidar_to_image(pcd)
-    # fov_idxs = points2d[:,:]
     fov_idxs = ((points2d[:, 0] < xmax) & (points2d[:, 0] >= xmin) &
                 (points2d[:, 1] < ymax) & (points2d[:, 1] >= ymin))
     fov_idxs = fov_idxs & (pcd[:, 0] > clip_distance)
@@ -56,7 +55,7 @@ def show_lidar_data(point_cloud_data, objects, calibration, figure,
         pcd_index = get_lidar_index_in_image_fov(point_cloud_data[:, :3], calibration, 0, 0, img_width, img_height)
         point_cloud_data = point_cloud_data[pcd_index, :]
         print(("FOV point num: ", point_cloud_data.shape))
-    draw_lidar(point_cloud_data, fig=figure, pointcloud_label= pc_label)
+    draw_lidar(point_cloud_data, fig=figure, pointcloud_label=pc_label)
 
     color = (0, 1, 0)
 
