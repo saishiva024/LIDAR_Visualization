@@ -50,11 +50,11 @@ def get_lidar_index_in_image_fov(pcd, calib, xmin, ymin, xmax, ymax, clip_distan
 
 def show_lidar_data(point_cloud_data, objects, calibration, figure,
                     img_fov=False, img_width=None, img_height=None, cam_img=None, pc_label=False, save=False):
-    print(("All point num: ", point_cloud_data.shape[0]))
+    # print(("All point num: ", point_cloud_data.shape[0]))
     if img_fov:
         pcd_index = get_lidar_index_in_image_fov(point_cloud_data[:, :3], calibration, 0, 0, img_width, img_height)
         point_cloud_data = point_cloud_data[pcd_index, :]
-        print(("FOV point num: ", point_cloud_data.shape))
+        # print(("FOV point num: ", point_cloud_data.shape))
     draw_lidar(point_cloud_data, fig=figure, pointcloud_label=pc_label)
 
     color = (0, 1, 0)
