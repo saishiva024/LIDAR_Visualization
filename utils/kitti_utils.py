@@ -28,7 +28,7 @@ class Object3D:
 
 
 class Calibration:
-    def __init__(self, calib_filename, from_video=False):
+    def __init__(self, calib_filename):
         calibration = self.read_calibration_file(calib_filename)
         self.P = calibration["P2"]
         self.P = np.reshape(self.P, [3, 4])
@@ -99,6 +99,7 @@ class Calibration:
     def project_ref_to_lidar(self, points3d_ref):
         points3d_ref = self.cart2hom(points3d_ref)
         return np.dot(points3d_ref, np.transpose(self.C2V))
+
 
 def inverse_rigid_transform(tr):
     inv_tr = np.zeros_like(tr)
