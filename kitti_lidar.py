@@ -50,23 +50,24 @@ def get_lidar_index_in_image_fov(pcd, calib, xmin, ymin, xmax, ymax, clip_distan
 
 def show_lidar_data(point_cloud_data, objects, calibration, figure,
                     img_fov=False, img_width=None, img_height=None, cam_img=None, pc_label=False, save=False):
-    print(("All point num: ", point_cloud_data.shape[0]))
+    # print(("All point num: ", point_cloud_data.shape[0]))
     if img_fov:
         pcd_index = get_lidar_index_in_image_fov(point_cloud_data[:, :3], calibration, 0, 0, img_width, img_height)
         point_cloud_data = point_cloud_data[pcd_index, :]
-        print(("FOV point num: ", point_cloud_data.shape))
+        # print(("FOV point num: ", point_cloud_data.shape))
     draw_lidar(point_cloud_data, fig=figure, pointcloud_label=pc_label)
 
     color = (0, 1, 0)
 
-    for obj in objects:
-        if obj.classification == "DontCare":
-            continue
-        _, bbox3d = compute_bbox3d(obj, calibration.P)
-        bbox3d_velodyne = calibration.project_rect_to_lidar(bbox3d)
+    if objects is not None:
+        for obj in objects:
+            if obj.classification == "DontCare":
+                continue
+            _, bbox3d = compute_bbox3d(obj, calibration.P)
+            bbox3d_velodyne = calibration.project_rect_to_lidar(bbox3d)
 
-        draw_groundtruth_3dbboxes([bbox3d_velodyne], fig=figure, color=color, label=obj.classification)
-    mlab.show(1)
+            draw_groundtruth_3dbboxes([bbox3d_velodyne], fig=figure, color=color, label=obj.classification)
+        mlab.show(1)
 
 
 def get_lidar_data_in_image_fov(pcd, calib, xmin, ymin, xmax, ymax, clip_distance=2.0):
