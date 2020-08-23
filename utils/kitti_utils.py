@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import os
 
 
 class Object3D:
@@ -28,8 +29,11 @@ class Object3D:
 
 
 class Calibration:
-    def __init__(self, calib_filename):
-        calibration = self.read_calibration_file(calib_filename)
+    def __init__(self, calib_filename, from_video=False):
+        if not from_video:
+            calibration = self.read_calibration_file(calib_filename)
+        else:
+            calibration = self.read_calibration_from_video(calib_filename)
         self.P = calibration["P2"]
         self.P = np.reshape(self.P, [3, 4])
         self.V2C = calibration["Tr_velo_to_cam"]
@@ -57,6 +61,21 @@ class Calibration:
                     data[key] = np.array([float(x) for x in value.split()])
                 except ValueError:
                     pass
+        return data
+
+    def read_calibration_from_video(self, calib_dir):
+        data = {}
+        cam2cam = self.read_calibration_file(os.path.join(calib_dir, "calib_cam_to_cam.txt"))
+        velo2cam = self.read_calibration_file(os.path.join(calib_dir, "calib_velo_to_cam.txt"))
+
+        Tr_velo_to_cam = np.zeros((3, 4))
+        Tr_velo_to_cam[0:3, 0:3] = np.reshape(velo2cam["R"], [3, 3])
+        Tr_velo_to_cam[:, 3] = velo2cam["T"]
+
+        data["Tr_velo_to_cam"] = np.reshape(Tr_velo_to_cam, [12])
+        data["R0_rect"] = cam2cam["R_rect_00"]
+        data["P2"] = cam2cam["P_rect_02"]
+
         return data
 
     def project_lidar_to_image(self, points3d_lidar):
@@ -101,6 +120,30 @@ class Calibration:
         return np.dot(points3d_ref, np.transpose(self.C2V))
 
 
+class KITTIVideo:
+    def __init__(self, img_dir, lidar_dir, calib_dir):
+        self.calib = Calibration(calib_dir, from_video=True)
+        self.img_dir = img_dir
+        self.lidar_dir = lidar_dir
+
+        self.img_filenames = sorted([os.path.join(img_dir, filename) for filename in os.listdir(img_dir)])
+        self.lidar_filenames = sorted([os.path.join(lidar_dir, filename) for filename in os.listdir(lidar_dir)])
+
+        self.num_samples = len(self.img_filenames)
+
+    def __len__(self):
+        return self.num_samples
+
+    def get_image(self, idx):
+        return load_image(self.img_filenames[idx])
+
+    def get_lidar(self, idx):
+        return get_velodyne_scan_points(self.lidar_filenames[idx])
+
+    def get_calibration(self):
+        return self.calib
+
+
 def inverse_rigid_transform(tr):
     inv_tr = np.zeros_like(tr)
     inv_tr[0:3, 0:3] = np.transpose(tr[0:3, 0:3])
@@ -134,6 +177,24 @@ def project_3d_to_image2d(points3d, P):
     points2d[:, 0] /= points2d[:, 2]
     points2d[:, 1] /= points2d[:, 2]
     return points2d[:, 0:2]
+
+
+def draw_projected_bbox3d(image, vertices, color, thickness):
+    vertices = vertices.astype(np.int32)
+    for idx in range(0, 4):
+        i, j = idx, (idx + 1) % 4
+        cv2.line(image, (vertices[i, 0], vertices[i, 1]),
+                 (vertices[j, 0], vertices[j, 1]),
+                 color, thickness)
+        i, j = idx + 4, (idx + 1) % 4 + 4
+        cv2.line(image, (vertices[i, 0], vertices[i, 1]),
+                 (vertices[j, 0], vertices[j, 1]),
+                 color, thickness)
+        i, j = idx, idx + 4
+        cv2.line(image, (vertices[i, 0], vertices[i, 1]),
+                 (vertices[j, 0], vertices[j, 1]),
+                 color, thickness)
+    return image
 
 
 def compute_bbox3d(obj, P):
