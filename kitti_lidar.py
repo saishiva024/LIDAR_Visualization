@@ -1,6 +1,7 @@
 import os
-from utils.kitti_utils import read_label, get_velodyne_scan_points, load_image, compute_bbox3d, Calibration
-from utils.visualization_utils import draw_lidar_simple, draw_lidar, draw_groundtruth_3dbboxes
+from utils.kitti_utils import read_label, get_velodyne_scan_points, load_image, compute_bbox3d, \
+    draw_projected_bbox3d, Calibration, KITTIVideo
+from utils.visualization_utils import draw_lidar, draw_groundtruth_3dbboxes
 import mayavi.mlab as mlab
 import numpy as np
 import matplotlib.pyplot as plt
@@ -82,7 +83,8 @@ def get_lidar_data_in_image_fov(pcd, calib, xmin, ymin, xmax, ymax, clip_distanc
 
 def show_lidar_data_on_image(point_cloud_data, img, calib, img_width, img_height):
     img = np.copy(img)
-    imgfov_pcd, points2d, fov_indices = get_lidar_data_in_image_fov(point_cloud_data, calib, 0, 0, img_width, img_height)
+    imgfov_pcd, points2d, fov_indices = \
+        get_lidar_data_in_image_fov(point_cloud_data, calib, 0, 0, img_width, img_height)
     imgfov_points2d = points2d[fov_indices, :]
     imgfov_pc_rect = calib.project_lidar_to_rect(imgfov_pcd)
 
@@ -96,3 +98,34 @@ def show_lidar_data_on_image(point_cloud_data, img, calib, img_width, img_height
                    2, color=tuple(color), thickness=-1)
     return img
 
+
+def show_bboxes_on_image(image, objects, calib):
+    img_2d = image.copy()
+    img_3d = image.copy()
+
+    if objects is not None:
+        for obj in objects:
+            if obj.classification == "DontCare":
+                continue
+            cv2.rectangle(img_2d, (int(obj.xmin_left), int(obj.ymin_top)),
+                          (int(obj.xmax_right), int(obj.ymax_bottom)),
+                          (0, 255, 0), 3)
+            bbox3d_points2d, _ = compute_bbox3d(obj, calib.P)
+            img_3d = draw_projected_bbox3d(img_3d, bbox3d_points2d, (0, 255, 0), 3)
+    return img_2d, img_3d
+
+
+def visualize_video(img_dir, lidar_dir, calib_dir, output_dir):
+    dataset = KITTIVideo(img_dir, lidar_dir, calib_dir)
+
+    fig = None
+
+    for i in range(len(dataset)):
+        img = dataset.get_image(i)
+        pcd = dataset.get_lidar(i)
+        # cv2.imshow("Video", img)
+        fig = draw_lidar(pcd, pointcloud_label=False)
+
+        mlab.savefig(os.path.join(output_dir, "P%s.png" % i))
+
+    return fig  # return last figure
